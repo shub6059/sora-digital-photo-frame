@@ -89,6 +89,13 @@ SESSION_SECRET=$(openssl rand -base64 32)
 | `NODE_ENV` | Node environment | No | production |
 | `SESSION_SECRET` | Session encryption key | **Yes** | - |
 | `ADMIN_PASSWORD` | Admin login password | **Recommended** | admin123 |
+| `MAX_FILE_SIZE` | Maximum upload size in bytes or units like `5GB` | No | 5GB |
+| `AD_WIDGET_ENABLED` | Show the slideshow advertisement widget | No | false |
+| `AD_WIDGET_TITLE` | Advertisement headline | No | - |
+| `AD_WIDGET_MESSAGE` | Advertisement body text | No | - |
+| `AD_WIDGET_IMAGE_URL` | Advertisement image URL | No | - |
+| `AD_WIDGET_LINK_URL` | Optional click-through URL | No | - |
+| `AD_WIDGET_POSITION` | Widget position: `top-left`, `top-right`, `bottom-left`, `bottom-right` | No | bottom-right |
 | `GOOGLE_CLIENT_ID` | Google Photos API client ID | No | - |
 | `GOOGLE_CLIENT_SECRET` | Google Photos API secret | No | - |
 | `GOOGLE_REDIRECT_URI` | Google OAuth redirect URI | No | - |
@@ -97,7 +104,7 @@ SESSION_SECRET=$(openssl rand -base64 32)
 
 The Docker setup creates persistent volumes for:
 
-- **photo-uploads**: Stores uploaded images (`/app/uploads`)
+- **photo-uploads**: Stores uploaded images and videos (`/app/uploads`)
 - **photo-data**: Stores application data like access accounts (`/app/data`)
 - **photo-logs**: Stores application logs (`/app/logs`)
 

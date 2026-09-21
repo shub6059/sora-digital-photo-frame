@@ -140,12 +140,14 @@
         }
 
         /* Image styling */
-        .admin-grid>div.image {
+        .admin-grid>div.image,
+        .admin-grid>div.video {
             padding: 0;
         }
 
         /* Image container */
-        .admin-grid>div.image .admin-photo-image {
+        .admin-grid>div.image .admin-photo-image,
+        .admin-grid>div.video .admin-photo-image {
             position: absolute;
             top: 0;
             left: 0;
@@ -155,7 +157,8 @@
             background: var(--muted);
         }
 
-        .admin-grid>div.image .admin-photo-image img {
+        .admin-grid>div.image .admin-photo-image img,
+        .admin-grid>div.video .admin-photo-image video {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -163,7 +166,8 @@
         }
 
         /* Hover overlay with controls - hidden by default */
-        .admin-grid>div.image .photo-grid-overlay {
+        .admin-grid>div.image .photo-grid-overlay,
+        .admin-grid>div.video .photo-grid-overlay {
             position: absolute;
             top: 0;
             left: 0;
@@ -186,7 +190,9 @@
 
         /* Show overlay on hover or when selected */
         .admin-grid>div.image:hover .photo-grid-overlay,
-        .admin-grid>div.image.selected .photo-grid-overlay {
+        .admin-grid>div.image.selected .photo-grid-overlay,
+        .admin-grid>div.video:hover .photo-grid-overlay,
+        .admin-grid>div.video.selected .photo-grid-overlay {
             opacity: 1;
             visibility: visible;
         }
@@ -328,7 +334,8 @@
         }
 
         /* Image info bar at bottom */
-        .admin-grid>div.image .photo-grid-info {
+        .admin-grid>div.image .photo-grid-info,
+        .admin-grid>div.video .photo-grid-info {
             position: absolute;
             bottom: 0;
             left: 0;
@@ -340,7 +347,8 @@
             z-index: 2;
         }
 
-        .admin-grid>div.image .photo-grid-name {
+        .admin-grid>div.image .photo-grid-name,
+        .admin-grid>div.video .photo-grid-name {
             font-size: 0.875rem;
             font-weight: 500;
             color: white;
@@ -350,13 +358,15 @@
         }
 
         /* Selected state - Enhanced visual feedback */
-        .admin-grid>div.image.selected {
+        .admin-grid>div.image.selected,
+        .admin-grid>div.video.selected {
             border-color: var(--primary);
             box-shadow: 0 0 0 2px var(--primary), 0 4px 12px rgba(0, 0, 0, 0.25);
             transform: translateY(-1px);
         }
 
-        .admin-grid>div.image.selected::after {
+        .admin-grid>div.image.selected::after,
+        .admin-grid>div.video.selected::after {
             content: '';
             position: absolute;
             top: 0;
@@ -929,7 +939,7 @@
                     <span class="material-symbols-outlined">create_new_folder</span>
                     New Folder
                 </button>
-                <button id="uploadBtn" class="btn" title="Upload Images">
+                <button id="uploadBtn" class="btn" title="Upload Media">
                     <span class="material-symbols-outlined">upload</span>
                     Upload
                 </button>
@@ -971,14 +981,14 @@
             <div id="dropZone" class="drop-zone hidden">
                 <div class="drop-zone-content">
                     <span class="material-symbols-outlined">cloud_upload</span>
-                    <p>Drop images here to upload</p>
+                    <p>Drop images or videos here to upload</p>
                 </div>
             </div>
 
             <!-- Floating Action Button -->
             <div id="selectionFab" class="selection-fab hidden">
-                <button id="bulkDeleteBtn" class="fab-button" data-tooltip="Delete Selected Photos"
-                    aria-label="Delete Selected Photos">
+                <button id="bulkDeleteBtn" class="fab-button" data-tooltip="Delete Selected Media"
+                    aria-label="Delete Selected Media">
                     <span class="material-symbols-outlined">delete</span>
                 </button>
                 <span class="fab-badge" id="fabBadge">0</span>
@@ -992,16 +1002,16 @@
                 <div class="max-w-md mx-auto">
                     <div class="text-center mb-6">
                         <span class="material-symbols-outlined text-6xl text-muted-foreground">photo_library</span>
-                        <h3 class="text-xl font-semibold mt-4 mb-2">No images yet</h3>
-                        <p class="text-muted-foreground">Upload some images to get started</p>
+                        <h3 class="text-xl font-semibold mt-4 mb-2">No media yet</h3>
+                        <p class="text-muted-foreground">Upload some images or videos to get started</p>
                     </div>
 
-                    <input type="file" id="emptyStateFileInput" multiple accept="image/*" hidden>
+                    <input type="file" id="emptyStateFileInput" multiple accept="image/*,video/*" hidden>
                     <div class="upload-drop-zone border-2 border-dashed border-muted rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
                         id="emptyStateUploadZone">
                         <span class="material-symbols-outlined text-4xl text-muted-foreground">cloud_upload</span>
-                        <p class="text-lg font-medium mt-2">Click to select images or drag and drop</p>
-                        <p class="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, WebP (max 10MB each)</p>
+                        <p class="text-lg font-medium mt-2">Click to select images or videos, or drag and drop</p>
+                        <p class="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, WebP, MP4, WebM, MOV, AVI, MPEG <span id="maxFileSizeEmpty">(max size loading...)</span></p>
                     </div>
 
                     <div id="emptyStateSelectedFiles" class="hidden mt-4">
@@ -1094,19 +1104,19 @@
         <dialog id="uploadModal" class="dialog" aria-labelledby="upload-title">
             <article>
                 <header>
-                    <h2 id="upload-title">Upload Images</h2>
+                    <h2 id="upload-title">Upload Media</h2>
                     <button id="closeUploadModal" class="btn-sm-icon-ghost absolute top-4 right-4" aria-label="Close">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </header>
                 <section>
                     <div class="grid gap-4">
-                        <input type="file" id="fileInput" multiple accept="image/*" hidden>
+                        <input type="file" id="fileInput" multiple accept="image/*,video/*" hidden>
                         <div class="upload-drop-zone border-2 border-dashed border-muted rounded-lg p-8 text-center cursor-pointer hover:bg-muted/50 transition-colors"
                             id="uploadDropZone">
                             <span class="material-symbols-outlined text-4xl text-muted-foreground">cloud_upload</span>
-                            <p class="text-lg font-medium mt-2">Click to select images or drag and drop</p>
-                            <p class="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, WebP (max 10MB each)</p>
+                            <p class="text-lg font-medium mt-2">Click to select images or videos, or drag and drop</p>
+                            <p class="text-sm text-muted-foreground">Supports JPEG, PNG, GIF, WebP, MP4, WebM, MOV, AVI, MPEG <span id="maxFileSize2">(max size loading...)</span></p>
                         </div>
                         <div id="selectedFilesInfo" class="hidden">
                             <div class="card">
@@ -1178,19 +1188,19 @@
             aria-describedby="bulk-delete-description">
             <article>
                 <header>
-                    <h2 id="bulk-delete-title">Delete Photos</h2>
+                    <h2 id="bulk-delete-title">Delete Media</h2>
                     <button id="closeBulkDeleteModal" class="btn-sm-icon-ghost absolute top-4 right-4"
                         aria-label="Close">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                     <p id="bulk-delete-description">Are you sure you want to delete <span id="deleteCount">0</span>
-                        selected photos? This action cannot be undone.</p>
+                        selected item(s)? This action cannot be undone.</p>
                 </header>
                 <footer>
                     <button id="cancelBulkDeleteBtn" class="btn-outline">Cancel</button>
                     <button id="confirmBulkDeleteBtn" class="btn-destructive">
                         <span class="material-symbols-outlined">delete</span>
-                        Delete Photos
+                        Delete Media
                     </button>
                 </footer>
             </article>

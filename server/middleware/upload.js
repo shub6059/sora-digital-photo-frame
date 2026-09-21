@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
+const { getMaxFileSize, formatBytes } = require('../utils/fileSize');
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
@@ -20,14 +21,24 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024 // Default 10MB
+    fileSize: getMaxFileSize()
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime',
+      'video/x-msvideo',
+      'video/mpeg'
+    ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'));
+      cb(new Error(`Invalid file type. Only JPEG, PNG, GIF, WebP, MP4, WebM, MOV, AVI, and MPEG are allowed. Maximum size is ${formatBytes(getMaxFileSize())}.`));
     }
   }
 });

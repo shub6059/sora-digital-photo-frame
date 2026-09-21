@@ -15,7 +15,7 @@ class SettingsManager {
     injectModal() {
         const modalHTML = `
             <dialog id="settingsModal" class="dialog" aria-labelledby="settings-title">
-                <article style="max-width: 500px;">
+                <article style="max-width: 560px;">
                     <header>
                         <h2 id="settings-title">Settings</h2>
                         <button id="closeSettingsModal" class="btn-sm-icon-ghost absolute top-4 right-4" aria-label="Close">
@@ -97,6 +97,57 @@ class SettingsManager {
                                 <span id="opacityValue" class="text-sm font-medium min-w-[3rem] text-right">100%</span>
                             </div>
                         </div>
+
+                        <!-- Custom Slideshow Content -->
+                        <div class="settings-section">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-2xl">text_fields</span>
+                                    <div>
+                                        <div class="font-medium">Custom Slideshow Content</div>
+                                        <div class="text-sm text-muted-foreground">Show animated text on the slideshow</div>
+                                    </div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="customContentToggle">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <label class="grid gap-1">
+                                    <span class="text-sm font-medium">Heading</span>
+                                    <input type="text" id="customContentTitle" class="input" placeholder="Welcome to our showroom">
+                                </label>
+
+                                <label class="grid gap-1">
+                                    <span class="text-sm font-medium">Animated Words</span>
+                                    <textarea id="customContentWords" class="input settings-textarea" rows="3" placeholder="Quality&#10;Comfort&#10;Style"></textarea>
+                                </label>
+
+                                <div class="grid grid-cols-2 gap-3">
+                                    <label class="grid gap-1">
+                                        <span class="text-sm font-medium">Animation</span>
+                                        <select id="customContentAnimation" class="input">
+                                            <option value="fade">Fade</option>
+                                            <option value="slide">Slide</option>
+                                            <option value="zoom">Zoom</option>
+                                        </select>
+                                    </label>
+
+                                    <label class="grid gap-1">
+                                        <span class="text-sm font-medium">Position</span>
+                                        <select id="customContentPosition" class="input">
+                                            <option value="center">Center</option>
+                                            <option value="top-left">Top Left</option>
+                                            <option value="top-right">Top Right</option>
+                                            <option value="bottom-left">Bottom Left</option>
+                                            <option value="bottom-right">Bottom Right</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </section>
                 </article>
             </dialog>
@@ -175,6 +226,16 @@ class SettingsManager {
                     font-weight: 600;
                     box-shadow: inset 0 0 0 1px var(--primary);
                 }
+
+                .settings-section {
+                    border-top: 1px solid var(--border);
+                    padding-top: 1rem;
+                }
+
+                .settings-textarea {
+                    min-height: 5rem;
+                    resize: vertical;
+                }
             </style>
         `;
 
@@ -243,6 +304,33 @@ class SettingsManager {
             opacityValue.textContent = `${opacity}%`;
             localStorage.setItem('widgetOpacity', opacity);
         });
+
+        document.getElementById('customContentToggle').addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('customContentEnabled', enabled.toString());
+            this.notifyCustomContentChanged();
+            this.showToast(`Custom slideshow content ${enabled ? 'enabled' : 'disabled'}`, 'success');
+        });
+
+        document.getElementById('customContentTitle').addEventListener('input', (e) => {
+            localStorage.setItem('customContentTitle', e.target.value);
+            this.notifyCustomContentChanged();
+        });
+
+        document.getElementById('customContentWords').addEventListener('input', (e) => {
+            localStorage.setItem('customContentWords', e.target.value);
+            this.notifyCustomContentChanged();
+        });
+
+        document.getElementById('customContentAnimation').addEventListener('change', (e) => {
+            localStorage.setItem('customContentAnimation', e.target.value);
+            this.notifyCustomContentChanged();
+        });
+
+        document.getElementById('customContentPosition').addEventListener('change', (e) => {
+            localStorage.setItem('customContentPosition', e.target.value);
+            this.notifyCustomContentChanged();
+        });
     }
 
     setTempUnit(unit) {
@@ -276,6 +364,12 @@ class SettingsManager {
         const opacity = localStorage.getItem('widgetOpacity') || '100';
         document.getElementById('widgetOpacitySlider').value = opacity;
         document.getElementById('opacityValue').textContent = `${opacity}%`;
+
+        document.getElementById('customContentToggle').checked = localStorage.getItem('customContentEnabled') === 'true';
+        document.getElementById('customContentTitle').value = localStorage.getItem('customContentTitle') || '';
+        document.getElementById('customContentWords').value = localStorage.getItem('customContentWords') || '';
+        document.getElementById('customContentAnimation').value = localStorage.getItem('customContentAnimation') || 'fade';
+        document.getElementById('customContentPosition').value = localStorage.getItem('customContentPosition') || 'center';
     }
 
     updateTempUnitButtons() {
@@ -313,6 +407,10 @@ class SettingsManager {
 
     closeModal() {
         this.modal.close();
+    }
+
+    notifyCustomContentChanged() {
+        window.dispatchEvent(new CustomEvent('customContentSettingsChanged'));
     }
 
     showToast(message, type = 'info') {

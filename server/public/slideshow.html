@@ -72,10 +72,15 @@
             opacity: 1;
         }
 
-        .slide img {
+        .slide img,
+        .slide video {
             max-width: 100vw;
             max-height: 100vh;
             object-fit: contain;
+        }
+
+        .slide video {
+            display: none;
         }
 
         .progress-bar {
@@ -120,6 +125,79 @@
 
         .info-overlay.hidden {
             opacity: 0;
+        }
+
+        .ad-widget {
+            position: absolute;
+            z-index: 16;
+            display: none;
+            max-width: min(22rem, calc(100vw - 2rem));
+            color: white;
+        }
+
+        .ad-widget.visible {
+            display: block;
+        }
+
+        .ad-widget.top-left {
+            top: 1rem;
+            left: 1rem;
+        }
+
+        .ad-widget.top-right {
+            top: 5rem;
+            right: 1rem;
+        }
+
+        .ad-widget.bottom-left {
+            bottom: 2rem;
+            left: 1rem;
+        }
+
+        .ad-widget.bottom-right {
+            right: 1rem;
+            bottom: 2rem;
+        }
+
+        .ad-widget-content {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 0.75rem;
+            align-items: center;
+            padding: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 0.5rem;
+            background: rgba(0, 0, 0, 0.62);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .ad-widget-image {
+            width: 4.5rem;
+            height: 4.5rem;
+            border-radius: 0.35rem;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .ad-widget-body {
+            min-width: 0;
+        }
+
+        .ad-widget-title {
+            font-size: 0.95rem;
+            line-height: 1.2;
+            font-weight: 800;
+        }
+
+        .ad-widget-message {
+            margin-top: 0.2rem;
+            font-size: 0.82rem;
+            line-height: 1.3;
+            color: rgba(255, 255, 255, 0.82);
+            overflow-wrap: anywhere;
         }
 
         /* Cursor auto-hide */
@@ -283,10 +361,12 @@
         <!-- Photo Slides -->
         <div class="slide" id="slide1">
             <img id="image1" alt="Photo">
+            <video id="video1" playsinline preload="metadata"></video>
         </div>
 
         <div class="slide" id="slide2">
             <img id="image2" alt="Photo">
+            <video id="video2" playsinline preload="metadata"></video>
         </div>
 
         <!-- Progress Bar -->
@@ -324,6 +404,17 @@
                 <span class="weather-icon material-icons" id="weatherIcon">wb_sunny</span>
                 <span id="tempDisplay">--°</span>
             </div>
+        </div>
+
+        <!-- Advertisement Widget -->
+        <div class="ad-widget bottom-right" id="adWidget" aria-live="polite">
+            <a class="ad-widget-content" id="adWidgetLink" href="#" target="_blank" rel="noopener">
+                <img class="ad-widget-image" id="adWidgetImage" alt="">
+                <div class="ad-widget-body">
+                    <div class="ad-widget-title" id="adWidgetTitle"></div>
+                    <div class="ad-widget-message" id="adWidgetMessage"></div>
+                </div>
+            </a>
         </div>
 
         <!-- Info Overlay -->
@@ -558,6 +649,10 @@
                     document.getElementById('image1'),
                     document.getElementById('image2')
                 ];
+                this.videos = [
+                    document.getElementById('video1'),
+                    document.getElementById('video2')
+                ];
                 this.loadingState = document.getElementById('loadingState');
                 this.errorState = document.getElementById('errorState');
                 this.errorMessage = document.getElementById('errorMessage');
@@ -568,9 +663,64 @@
                 this.infoOverlay = document.getElementById('infoOverlay');
                 this.filename = document.getElementById('filename');
                 this.folder = document.getElementById('folder');
+                this.adWidget = document.getElementById('adWidget');
+                this.adWidgetLink = document.getElementById('adWidgetLink');
+                this.adWidgetImage = document.getElementById('adWidgetImage');
+                this.adWidgetTitle = document.getElementById('adWidgetTitle');
+                this.adWidgetMessage = document.getElementById('adWidgetMessage');
 
                 this.errorState.classList.add('hidden');
                 this.images.forEach(img => img.removeAttribute('src'));
+                this.videos.forEach(video => video.removeAttribute('src'));
+                this.loadSlideshowConfig();
+            }
+
+            async loadSlideshowConfig() {
+                try {
+                    const response = await fetch('/api/config');
+                    if (!response.ok) return;
+
+                    const config = await response.json();
+                    this.configureAdvertisement(config.advertisement);
+                } catch (error) {
+                    console.error('Error loading slideshow config:', error);
+                }
+            }
+
+            configureAdvertisement(advertisement) {
+                const isEnabled = advertisement && advertisement.enabled;
+                const hasContent = advertisement?.title || advertisement?.message || advertisement?.imageUrl;
+
+                if (!isEnabled || !hasContent) {
+                    this.adWidget.classList.remove('visible');
+                    return;
+                }
+
+                const allowedPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+                const position = allowedPositions.includes(advertisement.position)
+                    ? advertisement.position
+                    : 'bottom-right';
+
+                this.adWidget.className = `ad-widget ${position} visible`;
+                this.adWidgetTitle.textContent = advertisement.title || '';
+                this.adWidgetMessage.textContent = advertisement.message || '';
+
+                if (advertisement.imageUrl) {
+                    this.adWidgetImage.src = advertisement.imageUrl;
+                    this.adWidgetImage.alt = advertisement.title || 'Advertisement';
+                    this.adWidgetImage.style.display = 'block';
+                } else {
+                    this.adWidgetImage.removeAttribute('src');
+                    this.adWidgetImage.style.display = 'none';
+                }
+
+                if (advertisement.linkUrl) {
+                    this.adWidgetLink.href = advertisement.linkUrl;
+                    this.adWidgetLink.removeAttribute('aria-disabled');
+                } else {
+                    this.adWidgetLink.removeAttribute('href');
+                    this.adWidgetLink.setAttribute('aria-disabled', 'true');
+                }
             }
 
             setupEventListeners() {
@@ -636,10 +786,10 @@
                     }
                 });
 
-                this.images.forEach(img => {
-                    img.addEventListener('error', () => {
+                [...this.images, ...this.videos].forEach(media => {
+                    media.addEventListener('error', () => {
                         if (this.errorState.classList.contains('hidden')) {
-                            this.showError('Failed to load image');
+                            this.showError('Failed to load media');
                         }
                     });
                 });
@@ -674,28 +824,50 @@
                 return new Promise((resolve) => {
                     const nextSlide = (this.currentSlide + 1) % 2;
                     const img = this.images[nextSlide];
+                    const video = this.videos[nextSlide];
+                    const isVideo = imageData.type === 'video' || /\.(mp4|webm|mov|avi|mpeg|mpg)$/i.test(imageData.filename);
+                    const media = isVideo ? video : img;
+                    const readyEvent = isVideo ? 'loadeddata' : 'load';
+
+                    img.style.display = isVideo ? 'none' : 'block';
+                    video.style.display = isVideo ? 'block' : 'none';
+                    img.removeAttribute('src');
+                    video.pause();
+                    video.removeAttribute('src');
+                    video.load();
 
                     const onLoad = () => {
-                        img.removeEventListener('load', onLoad);
-                        img.removeEventListener('error', onError);
+                        media.removeEventListener(readyEvent, onLoad);
+                        media.removeEventListener('error', onError);
                         this.hideError();
                         this.currentImageData = imageData;
+                        if (isVideo) {
+                            video.currentTime = 0;
+                            video.muted = false;
+                            video.volume = 1;
+                            video.play().catch(error => {
+                                console.warn('Video playback with sound was blocked:', error);
+                            });
+                        }
                         resolve(true);
                     };
 
                     const onError = (event) => {
-                        img.removeEventListener('load', onLoad);
-                        img.removeEventListener('error', onError);
-                        console.error('Failed to load image:', imageData.url);
+                        media.removeEventListener(readyEvent, onLoad);
+                        media.removeEventListener('error', onError);
+                        console.error('Failed to load media:', imageData.url);
                         if (this.errorState.classList.contains('hidden')) {
-                            this.showError(`Failed to load image: ${imageData.filename}`);
+                            this.showError(`Failed to load media: ${imageData.filename}`);
                         }
                         resolve(false);
                     };
 
-                    img.addEventListener('load', onLoad);
-                    img.addEventListener('error', onError);
-                    img.src = imageData.url;
+                    media.addEventListener(readyEvent, onLoad);
+                    media.addEventListener('error', onError);
+                    media.src = imageData.url;
+                    if (isVideo) {
+                        media.load();
+                    }
                 });
             }
 
@@ -705,6 +877,7 @@
 
                 currentSlideEl.classList.remove('active');
                 nextSlideEl.classList.add('active');
+                this.videos[this.currentSlide].pause();
 
                 this.currentSlide = (this.currentSlide + 1) % 2;
                 this.updateInfo();

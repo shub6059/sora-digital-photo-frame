@@ -39,10 +39,33 @@ router.post('/access-accounts', requireAuth, accessAccountController.createAccou
 router.put('/access-accounts/:id', requireAuth, accessAccountController.updateAccount.bind(accessAccountController));
 router.delete('/access-accounts/:id', requireAuth, accessAccountController.deleteAccount.bind(accessAccountController));
 
-// Feature flags
+// Feature flags and configuration
 router.get('/features', requireAuth, (req, res) => {
     res.json({
         googlePhotosEnabled: process.env.ENABLE_GOOGLE_PHOTOS === 'true'
+    });
+});
+
+// Configuration endpoint (for frontend to display limits)
+router.get('/config', (req, res) => {
+    const { formatBytes, getMaxFileSize } = require('../utils/fileSize');
+    const maxSize = getMaxFileSize();
+    const advertisementEnabled = process.env.AD_WIDGET_ENABLED === 'true';
+
+    res.json({
+        maxFileSize: maxSize,
+        maxFileSizeFormatted: formatBytes(maxSize),
+        allowedMediaTypes: ['JPEG', 'PNG', 'GIF', 'WebP', 'MP4', 'WebM', 'MOV', 'AVI', 'MPEG'],
+        advertisement: {
+            enabled: advertisementEnabled,
+            title: process.env.AD_WIDGET_TITLE || '',
+            message: process.env.AD_WIDGET_MESSAGE || '',
+            imageUrl: process.env.AD_WIDGET_IMAGE_URL || '',
+            linkUrl: process.env.AD_WIDGET_LINK_URL || '',
+            position: process.env.AD_WIDGET_POSITION || 'bottom-right'
+        },
+        supportUrl: 'https://docs-sora-frame.vercel.app/',
+        documentationUrl: 'https://docs-sora-frame.vercel.app/'
     });
 });
 

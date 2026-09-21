@@ -2,6 +2,9 @@ const path = require('path');
 const fs = require('fs-extra');
 const sharp = require('sharp');
 
+const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp)$/i;
+const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|avi|mpeg|mpg)$/i;
+
 class ImageController {
   constructor() {
     this.uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -13,7 +16,7 @@ class ImageController {
     this.cacheExpiry = parseInt(process.env.IMAGE_CACHE_EXPIRY) || 60000; // Cache for 1 minute
   }
 
-  // Get all images recursively with caching
+  // Get all supported slideshow media recursively with caching
   async getAllImages(dir = this.uploadsDir, useCache = true) {
     // Check if cache is valid
     if (useCache && this.imageCache && this.cacheTimestamp && 
@@ -29,12 +32,14 @@ class ImageController {
       if (item.isDirectory()) {
         const subImages = await this.getAllImages(fullPath, false); // Don't use cache for recursion
         images.push(...subImages);
-      } else if (item.isFile() && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.name)) {
+      } else if (item.isFile() && (IMAGE_EXTENSIONS.test(item.name) || VIDEO_EXTENSIONS.test(item.name))) {
+        const isVideo = VIDEO_EXTENSIONS.test(item.name);
         const imageData = {
           path: fullPath,
           relativePath: path.relative(this.uploadsDir, fullPath),
           folder: path.basename(path.dirname(fullPath)),
-          id: path.relative(this.uploadsDir, fullPath) // Use relative path as unique ID
+          id: path.relative(this.uploadsDir, fullPath), // Use relative path as unique ID
+          type: isVideo ? 'video' : 'image'
         };
         images.push(imageData);
       }
@@ -58,7 +63,7 @@ class ImageController {
       if (allImages.length === 0) {
         return res.status(404).json({ 
           success: false,
-          error: 'No images found',
+          error: 'No media found',
           code: 'NO_IMAGES_FOUND'
         });
       }
@@ -92,7 +97,7 @@ class ImageController {
           console.log('❌ Access Control - No accessible images found for assigned folders:', assignedFolders);
           return res.status(403).json({ 
             success: false,
-            error: 'No images accessible with your account permissions',
+            error: 'No media accessible with your account permissions',
             code: 'ACCESS_RESTRICTED'
           });
         }
@@ -116,10 +121,10 @@ class ImageController {
         console.log('📁 API Filter - Images after filter:', availableImages.length);
         
         if (availableImages.length === 0) {
-          console.log('❌ API Filter - No images found in folder:', decodedFolder);
+          console.log('❌ API Filter - No media found in folder:', decodedFolder);
           return res.status(404).json({ 
             success: false,
-            error: `No images found in folder: ${decodedFolder}`,
+            error: `No media found in folder: ${decodedFolder}`,
             code: 'FOLDER_EMPTY'
           });
         }
@@ -167,8 +172,11 @@ class ImageController {
           filename: path.basename(randomImage.path),
           path: relativePath,
           folder: path.dirname(randomImage.relativePath),
+          type: randomImage.type,
           url: fullUrl,
-          thumbnail: `${req.protocol}://${req.get('host')}/api/images/${encodeURIComponent(randomImage.id)}/thumbnail`,
+          thumbnail: randomImage.type === 'image'
+            ? `${req.protocol}://${req.get('host')}/api/images/${encodeURIComponent(randomImage.id)}/thumbnail`
+            : null,
           metadata: {
             size: null, // Would need fs.stat to get actual size
             dimensions: {
@@ -227,7 +235,7 @@ class ImageController {
     console.log('Image cache cleared');
   }
 
-  // Upload images
+  // Upload images and videos
   async uploadImages(req, res) {
     try {
       console.log('Upload request body:', req.body);
@@ -245,28 +253,35 @@ class ImageController {
         // Ensure target directory exists
         await fs.ensureDir(targetDir);
         
-        // Process image with Sharp for optimization
-        const processedPath = path.join(path.dirname(file.path), `processed_${file.filename}`);
-        
-        await sharp(file.path)
-          .rotate() // Auto-rotate based on EXIF orientation
-          .resize(
-            parseInt(process.env.MAX_RESOLUTION_WIDTH) || 1920, 
-            parseInt(process.env.MAX_RESOLUTION_HEIGHT) || 1080, 
-            { fit: 'inside', withoutEnlargement: true }
-          )
-          .jpeg({ quality: parseInt(process.env.IMAGE_QUALITY) || 85 })
-          .toFile(processedPath);
-        
-        // Remove original and move processed to target location
-        await fs.remove(file.path);
-        await fs.move(processedPath, targetFilePath);
+        if (file.mimetype && file.mimetype.startsWith('video/')) {
+          if (path.resolve(file.path) !== path.resolve(targetFilePath)) {
+            await fs.move(file.path, targetFilePath, { overwrite: true });
+          }
+        } else {
+          // Process image with Sharp for optimization
+          const processedPath = path.join(path.dirname(file.path), `processed_${file.filename}`);
+
+          await sharp(file.path)
+            .rotate() // Auto-rotate based on EXIF orientation
+            .resize(
+              parseInt(process.env.MAX_RESOLUTION_WIDTH) || 1920,
+              parseInt(process.env.MAX_RESOLUTION_HEIGHT) || 1080,
+              { fit: 'inside', withoutEnlargement: true }
+            )
+            .jpeg({ quality: parseInt(process.env.IMAGE_QUALITY) || 85 })
+            .toFile(processedPath);
+
+          // Remove original and move processed to target location
+          await fs.remove(file.path);
+          await fs.move(processedPath, targetFilePath);
+        }
         
         processedFiles.push({
           filename: file.filename,
           originalname: file.originalname,
           path: targetFilePath,
-          size: file.size
+          size: file.size,
+          type: VIDEO_EXTENSIONS.test(file.filename) ? 'video' : 'image'
         });
       }
       
@@ -274,7 +289,7 @@ class ImageController {
       this.clearImageCache();
       
       res.json({
-        message: 'Images uploaded successfully',
+        message: 'Files uploaded successfully',
         files: processedFiles
       });
     } catch (error) {

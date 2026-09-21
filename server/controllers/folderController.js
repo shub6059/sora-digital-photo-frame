@@ -3,6 +3,9 @@ const fs = require('fs-extra');
 const sharp = require('sharp');
 const imageController = require('./imageController');
 
+const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp)$/i;
+const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|avi|mpeg|mpg)$/i;
+
 class FolderController {
   constructor() {
     this.uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -57,7 +60,7 @@ class FolderController {
       
       // First check for images in current directory
       for (const item of items) {
-        if (item.isFile() && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.name)) {
+        if (item.isFile() && IMAGE_EXTENSIONS.test(item.name)) {
           return path.join(dir, item.name);
         }
       }
@@ -88,7 +91,7 @@ class FolderController {
         const fullPath = path.join(dir, item.name);
         if (item.isDirectory()) {
           count += await this.countImagesInFolder(fullPath);
-        } else if (item.isFile() && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.name)) {
+        } else if (item.isFile() && IMAGE_EXTENSIONS.test(item.name)) {
           count++;
         }
       }
@@ -170,7 +173,7 @@ class FolderController {
             imageCount: imageCount,
             hasSubfolders: hasSubfolders
           });
-        } else if (item.isFile() && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.name)) {
+        } else if (item.isFile() && IMAGE_EXTENSIONS.test(item.name)) {
           const relativePath = folderPath ? path.join(folderPath, item.name) : item.name;
           const imageFolder = path.dirname(relativePath);
           
@@ -299,10 +302,11 @@ class FolderController {
             type: 'folder',
             path: path.join(folderPath, item.name)
           });
-        } else if (item.isFile() && /\.(jpg|jpeg|png|gif|webp)$/i.test(item.name)) {
+        } else if (item.isFile() && (IMAGE_EXTENSIONS.test(item.name) || VIDEO_EXTENSIONS.test(item.name))) {
+          const isVideo = VIDEO_EXTENSIONS.test(item.name);
           files.push({
             name: item.name,
-            type: 'image',
+            type: isVideo ? 'video' : 'image',
             path: path.join(folderPath, item.name),
             url: `/uploads/${path.relative(this.uploadsDir, path.join(fullPath, item.name))}`
           });

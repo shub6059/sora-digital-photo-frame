@@ -1,11 +1,18 @@
 // Global error handling middleware
+const { formatBytes, getMaxFileSize } = require('../utils/fileSize');
+
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err);
 
   // Multer errors
   if (err.code === 'LIMIT_FILE_SIZE') {
+    const maxSize = getMaxFileSize();
+
     return res.status(400).json({
-      message: 'File size too large. Maximum size is 10MB.'
+      code: 'FILE_TOO_LARGE',
+      message: `File size too large. Maximum size is ${formatBytes(maxSize)}.`,
+      maxFileSize: maxSize,
+      maxFileSizeFormatted: formatBytes(maxSize)
     });
   }
 

@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // Check if user is authenticated
 const requireAuth = (req, res, next) => {
@@ -12,10 +13,9 @@ const requireAuth = (req, res, next) => {
 
   if (req.session && req.session.authenticated) {
     // Check if session has expired based on login time and maxAge
-    const sessionMaxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     const loginTime = req.session.loginTime ? new Date(req.session.loginTime) : null;
 
-    if (loginTime && (Date.now() - loginTime.getTime()) > sessionMaxAge) {
+    if (loginTime && (Date.now() - loginTime.getTime()) > SESSION_MAX_AGE_MS) {
       // Session expired, destroy it
       req.session.destroy((err) => {
         if (err) console.error('Error destroying expired session:', err);

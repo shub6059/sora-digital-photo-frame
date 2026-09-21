@@ -7,6 +7,9 @@ class PhotoFrameAdmin {
         this.contextMenuTarget = null;
         this.longPressTimeout = null;
         this.longPressDelay = 500; // 500ms for long press
+        this.maxFileSize = null;
+        this.maxFileSizeFormatted = 'the configured upload limit';
+        this.supportedMediaTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/mpeg'];
         
         // Photo modal zoom/pan state
         this.isZoomed = false;
@@ -163,7 +166,7 @@ class PhotoFrameAdmin {
 
         // File input
         document.getElementById('fileInput').addEventListener('change', (e) => {
-            this.selectedFiles = Array.from(e.target.files);
+            this.selectedFiles = this.filterSupportedUploadFiles(Array.from(e.target.files));
             this.updateUploadButton();
             this.updateSelectedFilesDisplay();
         });
@@ -332,7 +335,7 @@ class PhotoFrameAdmin {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             
-            const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+            const files = this.filterSupportedUploadFiles(Array.from(e.dataTransfer.files));
             this.selectedFiles = files;
             this.updateUploadButton();
             this.updateSelectedFilesDisplay();
@@ -366,7 +369,7 @@ class PhotoFrameAdmin {
             dragCounter = 0;
             document.getElementById('dropZone').classList.add('hidden');
             
-            const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+            const files = this.filterSupportedUploadFiles(Array.from(e.dataTransfer.files));
             if (files.length > 0) {
                 this.uploadFilesDirectly(files);
             }
@@ -402,7 +405,7 @@ class PhotoFrameAdmin {
         fileGrid.innerHTML = '';
         
         // Update available images for navigation
-        this.availableImages = data.files.map((file, index) => ({
+        this.availableImages = data.files.filter(file => file.type !== 'video').map((file, index) => ({
             ...file,
             index: index
         }));
@@ -454,28 +457,31 @@ class PhotoFrameAdmin {
 
     createFileElement(file) {
         const div = document.createElement('div');
-        div.className = 'file-item image';
+        const isVideo = file.type === 'video';
+        div.className = `file-item ${isVideo ? 'video' : 'image'}`;
         div.dataset.path = file.path;
-        div.dataset.type = 'image';
+        div.dataset.type = file.type || 'image';
         div.innerHTML = `
             <div class="admin-photo-image">
-                <img src="${file.url}" alt="${file.name}" loading="lazy">
+                ${isVideo
+                    ? `<video src="${file.url}" muted preload="metadata"></video>`
+                    : `<img src="${file.url}" alt="${file.name}" loading="lazy">`}
             </div>
             <div class="photo-grid-overlay">
                 <div class="photo-grid-overlay-top">
                     <div class="photo-grid-checkbox">
                         <label class="label">
-                            <input type="checkbox" class="input" data-path="${file.path}" aria-label="Select Photo">
-                            <span class="sr-only">Select Photo</span>
+                            <input type="checkbox" class="input" data-path="${file.path}" aria-label="Select Media">
+                            <span class="sr-only">Select Media</span>
                         </label>
                     </div>
                 </div>
                 <div class="photo-grid-overlay-bottom">
                     <div class="photo-grid-actions">
-                        <button class="btn-icon" data-tooltip="View Photo" data-action="view" aria-label="View Photo">
+                        <button class="btn-icon" data-tooltip="${isVideo ? 'Play Video' : 'View Photo'}" data-action="view" aria-label="${isVideo ? 'Play Video' : 'View Photo'}">
                             <span class="material-symbols-outlined">visibility</span>
                         </button>
-                        <button class="btn-icon" data-tooltip="Delete Photo" data-action="delete" aria-label="Delete Photo">
+                        <button class="btn-icon" data-tooltip="Delete Media" data-action="delete" aria-label="Delete Media">
                             <span class="material-symbols-outlined">delete</span>
                         </button>
                     </div>
@@ -500,9 +506,13 @@ class PhotoFrameAdmin {
                 e.stopPropagation(); // Prevent cell selection
                 const action = button.getAttribute('data-action');
                 if (action === 'view') {
-                    this.showPhotoModal(file.url, file.name);
+                    if (isVideo) {
+                        window.open(file.url, '_blank');
+                    } else {
+                        this.showPhotoModal(file.url, file.name);
+                    }
                 } else if (action === 'delete') {
-                    this.deleteItem({...file, type: 'image'});
+                    this.deleteItem({...file, type: file.type || 'image'});
                 }
             });
         });
@@ -513,7 +523,7 @@ class PhotoFrameAdmin {
         div.addEventListener('mouseup', (e) => this.handlePointerUp(e, file, div));
         div.addEventListener('touchend', (e) => this.handlePointerUp(e, file, div));
         div.addEventListener('mouseleave', () => this.cancelLongPress());
-        div.addEventListener('contextmenu', (e) => this.showContextMenu(e, {...file, type: 'image'}));
+        div.addEventListener('contextmenu', (e) => this.showContextMenu(e, {...file, type: file.type || 'image'}));
         
         // Regular click handler for photo modal
         div.addEventListener('click', (e) => {
@@ -521,7 +531,11 @@ class PhotoFrameAdmin {
             if (e.target.closest('.photo-grid-checkbox') || e.target.closest('.btn-icon')) return;
             if (!this.longPressTriggered) {
                 e.preventDefault();
-                this.showPhotoModal(file.url, file.name);
+                if (isVideo) {
+                    window.open(file.url, '_blank');
+                } else {
+                    this.showPhotoModal(file.url, file.name);
+                }
             }
         });
         
@@ -700,7 +714,7 @@ class PhotoFrameAdmin {
             selectedFilesInfo.classList.remove('hidden');
             filesList.innerHTML = this.selectedFiles.map(file => 
                 `<div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm">image</span>
+                    <span class="material-symbols-outlined text-sm">${this.getMediaIcon(file)}</span>
                     <span class="flex-1">${file.name}</span>
                     <span class="text-xs">${this.formatFileSize(file.size)}</span>
                 </div>`
@@ -716,6 +730,44 @@ class PhotoFrameAdmin {
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    isSupportedMediaFile(file) {
+        return this.supportedMediaTypes.includes(file.type);
+    }
+
+    getMediaIcon(file) {
+        return file.type && file.type.startsWith('video/') ? 'movie' : 'image';
+    }
+
+    filterSupportedUploadFiles(files) {
+        const validFiles = [];
+        let invalidTypeCount = 0;
+        let tooLargeCount = 0;
+
+        files.forEach(file => {
+            if (!this.isSupportedMediaFile(file)) {
+                invalidTypeCount++;
+                return;
+            }
+
+            if (this.maxFileSize && file.size > this.maxFileSize) {
+                tooLargeCount++;
+                return;
+            }
+
+            validFiles.push(file);
+        });
+
+        if (invalidTypeCount > 0) {
+            this.showToast(`${invalidTypeCount} unsupported file(s) skipped. Supported: JPEG, PNG, GIF, WebP, MP4, WebM, MOV, AVI, MPEG.`, 'warning');
+        }
+
+        if (tooLargeCount > 0) {
+            this.showToast(`${tooLargeCount} file(s) skipped because they exceed the ${this.maxFileSizeFormatted} upload limit.`, 'warning');
+        }
+
+        return validFiles;
     }
 
     async uploadFiles() {
@@ -969,16 +1021,26 @@ class PhotoFrameAdmin {
 
     async checkFeatureFlags() {
         try {
-            const response = await this.authenticatedFetch('/api/features');
+            const [featuresResponse, configResponse] = await Promise.all([
+                this.authenticatedFetch('/api/features'),
+                this.authenticatedFetch('/api/config')
+            ]);
             
-            if (response && response.ok) {
-                const features = await response.json();
+            if (featuresResponse && featuresResponse.ok) {
+                const features = await featuresResponse.json();
                 
                 // Hide Google Photos button if disabled
                 const googlePhotosBtn = document.getElementById('googlePhotosBtn');
                 if (googlePhotosBtn && !features.googlePhotosEnabled) {
                     googlePhotosBtn.style.display = 'none';
                 }
+            }
+
+            if (configResponse && configResponse.ok) {
+                const config = await configResponse.json();
+                this.maxFileSize = config.maxFileSize;
+                this.maxFileSizeFormatted = config.maxFileSizeFormatted;
+                this.updateUploadLimitText();
             }
         } catch (error) {
             console.error('Error checking feature flags:', error);
@@ -988,6 +1050,16 @@ class PhotoFrameAdmin {
                 googlePhotosBtn.style.display = 'none';
             }
         }
+    }
+
+    updateUploadLimitText() {
+        const limitText = `(max ${this.maxFileSizeFormatted} each)`;
+        ['maxFileSize2', 'maxFileSizeEmpty'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = limitText;
+            }
+        });
     }
 
     async logout() {
@@ -1418,13 +1490,13 @@ class PhotoFrameAdmin {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             
-            const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+            const files = this.filterSupportedUploadFiles(Array.from(e.dataTransfer.files));
             this.handleEmptyStateFileSelection(files);
         });
     }
 
     handleEmptyStateFileSelection(files) {
-        this.emptyStateSelectedFiles = files.filter(file => file.type.startsWith('image/'));
+        this.emptyStateSelectedFiles = this.filterSupportedUploadFiles(files);
         this.updateEmptyStateUploadButton();
         this.updateEmptyStateFilesDisplay();
     }
@@ -1453,7 +1525,7 @@ class PhotoFrameAdmin {
             selectedFilesDiv.classList.remove('hidden');
             filesList.innerHTML = this.emptyStateSelectedFiles.map(file => 
                 `<div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined text-sm">image</span>
+                    <span class="material-symbols-outlined text-sm">${this.getMediaIcon(file)}</span>
                     <span class="flex-1">${file.name}</span>
                     <span class="text-xs">${this.formatFileSize(file.size)}</span>
                 </div>`

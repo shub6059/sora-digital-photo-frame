@@ -31,9 +31,10 @@ Turn any device with a web browser into a smart, open-source digital photo frame
 Access the admin panel by navigating to `http://your-server-ip:3000/admin` and logging in with your password.
 
 From there, you can:
-- **Upload Photos**: Drag and drop images directly into the current folder or use the upload button.
+- **Upload Media**: Drag and drop images or videos directly into the current folder or use the upload button.
 - **Organize**: Create and delete nested folders to organize your library.
-- **Supported formats**: JPEG, PNG, WebP, GIF.
+- **Supported formats**: JPEG, PNG, WebP, GIF, MP4, WebM, MOV, AVI, MPEG.
+- **Advertisement Widget**: Set `AD_WIDGET_ENABLED=true` and configure the `AD_WIDGET_*` environment variables to show a custom ad on the slideshow.
 
 ### Viewing the Slideshow
 

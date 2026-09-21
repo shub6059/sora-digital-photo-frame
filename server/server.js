@@ -6,6 +6,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs-extra');
 const session = require('express-session');
+const os = require('os');
 
 // Import middleware
 const logger = require('./middleware/logger');
@@ -16,6 +17,7 @@ const routes = require('./routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SESSION_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // Trust proxy if running behind reverse proxy
 app.set('trust proxy', 1);
@@ -40,7 +42,7 @@ app.use(session({
   cookie: {
     secure: false, // Set to false for development, even in production for HTTP
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    maxAge: SESSION_MAX_AGE_MS,
     sameSite: 'lax' // Add SameSite attribute for better compatibility
   }
 }));
@@ -74,13 +76,33 @@ const initializeUploads = async () => {
   }
 };
 
-// Start server
-app.listen(PORT, async () => {
+// Start server (bind to all interfaces so it's reachable from other hosts)
+app.listen(PORT, '0.0.0.0', async () => {
   await initializeUploads();
+
+  // Build list of non-internal IPv4 addresses for easy access
+  const nets = os.networkInterfaces();
+  const addresses = [];
+  Object.values(nets).forEach(ifaces => {
+    ifaces.forEach(iface => {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        addresses.push(iface.address);
+      }
+    });
+  });
+
   console.log(`Digital Photo Frame Server running on port ${PORT}`);
-  console.log(`Admin panel: http://localhost:${PORT}/admin`);
-  console.log(`Slideshow: http://localhost:${PORT}/slideshow`);
-  console.log(`API endpoint: http://localhost:${PORT}/api/random-image`);
+  console.log(`Admin panel (localhost): http://localhost:${PORT}/admin`);
+  console.log(`Slideshow (localhost): http://localhost:${PORT}/slideshow`);
+  console.log(`API endpoint (localhost): http://localhost:${PORT}/api/random-image`);
+
+  if (addresses.length > 0) {
+    addresses.forEach(addr => {
+      console.log(`Accessible on network: http://${addr}:${PORT}/admin`);
+    });
+  } else {
+    console.log('No non-internal network interfaces detected.');
+  }
 });
 
 module.exports = app;
