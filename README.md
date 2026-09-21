@@ -55,7 +55,7 @@ This project is licensed under the ISC License - see the [LICENSE](LICENSE) file
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/shub6059/sora-digital-photo-frame/issues)
-- **Documentation**: See the `/documentation` directory for technical specifications
+- **Documentation**: [SORA Frame documentation](https://docs-sora-frame.vercel.app/)
 - **Discussions**: [GitHub Discussions](https://github.com/shub6059/sora-digital-photo-frame/discussions)
 
 ---
